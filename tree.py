@@ -68,6 +68,3 @@ def parse_test_data():
     seq_f = path.join("dataset", "ENSG00000013016_EHD3_NT.msa.dat")
     branch_length_f = path.join("dataset", "ENSG00000013016_EHD3_NT.branchlength.dat")
     return Tree(tree_f, seq_f, branch_length_f)
-
-
-T = parse_test_data()
