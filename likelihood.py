@@ -4,6 +4,7 @@ import math
 from tree import parse_test_data
 import time
 from joblib import Parallel, delayed
+import pandas as pd
 
 
 class LikelihoodCalculator:
@@ -113,10 +114,13 @@ class LikelihoodCalculator:
         return float(sum(site_log_likes))
 
 
-start = time.perf_counter()
-calc = LikelihoodCalculator(u=0.3)
-T = parse_test_data()
-total_log_likelihood = calc.compute_tree_likelihood(T)
-print(f"Total log-likelihood: {total_log_likelihood}")
-end = time.perf_counter()
-print(f"Computation time: {end - start} seconds")
+df = pd.DataFrame(columns=["run_id", "run_time", "type"])
+for i in range(100):
+    start = time.perf_counter()
+    calc = LikelihoodCalculator(u=0.3)
+    # Compute likelihood for the tree
+    T = parse_test_data()
+    total_log_likelihood = calc.compute_tree_likelihood(T)
+    end = time.perf_counter()
+    df.loc[i] = [i + 1, end - start, "original"]
+df.to_csv("original_likelihood_times.csv", index=False)
