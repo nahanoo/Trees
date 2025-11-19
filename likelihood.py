@@ -2,6 +2,8 @@ import numpy as np
 import scipy.linalg
 import math
 from tree import parse_test_data
+import time
+from joblib import Parallel, delayed
 
 
 class LikelihoodCalculator:
@@ -71,45 +73,50 @@ class LikelihoodCalculator:
         return cond_like
 
     def compute_site_likelihood(self, tree, site_idx):
-        """
-        Compute likelihood for a single site in the alignment.
-        """
         root = tree.find_root()
-
-        # Get conditional likelihood at root
         root_like = self.compute_conditional_likelihood(root, site_idx)
-
-        # Multiply by base frequencies and sum
-        site_like = np.matmul(root_like, self.pi)
-
+        site_like = root_like @ self.pi
         return math.log(site_like) if site_like > 0 else -float("inf")
 
-    def compute_tree_likelihood(self, tree):
+    def compute_tree_likelihood(self, tree, n_jobs=1, backend="loky"):
         """
         Compute total log-likelihood for the entire tree and alignment.
+        Parallelizes over sites if n_jobs != 1.
         """
-        # Get alignment length from first tip
         tips = tree.tips()
         if not tips or not tips[0].sequence:
             return 0.0
 
         alignment_length = len(tips[0].sequence)
 
-        # Sum log-likelihoods over all sites
-        total_log_like = 0.0
-        for site_idx in range(alignment_length):
-            site_log_like = self.compute_site_likelihood(tree, site_idx)
-            total_log_like += site_log_like
+        # Precompute root once (tiny speed gain, but free)
+        root = tree.find_root()
 
-        return total_log_like
+        if n_jobs == 1:
+            total = 0.0
+            for site_idx in range(alignment_length):
+                root_like = self.compute_conditional_likelihood(root, site_idx)
+                site_like = root_like @ self.pi
+                total += math.log(site_like) if site_like > 0 else -float("inf")
+            return total
+
+        # Parallel version: one site per job
+        def _site_log_like(site_idx):
+            root_like = self.compute_conditional_likelihood(root, site_idx)
+            site_like = root_like @ self.pi
+            return math.log(site_like) if site_like > 0 else -float("inf")
+
+        site_log_likes = Parallel(n_jobs=n_jobs, backend=backend)(
+            delayed(_site_log_like)(site_idx) for site_idx in range(alignment_length)
+        )
+
+        return float(sum(site_log_likes))
 
 
+start = time.perf_counter()
 calc = LikelihoodCalculator(u=0.3)
-
-# Compute likelihood for the tree
 T = parse_test_data()
 total_log_likelihood = calc.compute_tree_likelihood(T)
 print(f"Total log-likelihood: {total_log_likelihood}")
-
-# You can also compute likelihood for a single site
-site_log_like = calc.compute_site_likelihood(T, site_idx=0)
+end = time.perf_counter()
+print(f"Computation time: {end - start} seconds")
