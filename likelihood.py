@@ -2,6 +2,7 @@ import numpy as np
 import scipy.linalg
 import math
 from tree import parse_test_data
+import time
 
 
 class LikelihoodCalculator:
@@ -104,12 +105,12 @@ class LikelihoodCalculator:
         return total_log_like
 
 
+start = time.perf_counter()
 calc = LikelihoodCalculator(u=0.3)
 
 # Compute likelihood for the tree
 T = parse_test_data()
 total_log_likelihood = calc.compute_tree_likelihood(T)
 print(f"Total log-likelihood: {total_log_likelihood}")
-
-# You can also compute likelihood for a single site
-site_log_like = calc.compute_site_likelihood(T, site_idx=0)
+end = time.perf_counter()
+print(f"Computation time: {end - start} seconds")
